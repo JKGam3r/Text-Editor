@@ -1,0 +1,159 @@
+package main.gui.components.textpanecomponents.caretpos;
+
+import javax.swing.text.JTextComponent;
+import javax.swing.text.TextAction;
+import java.awt.event.ActionEvent;
+
+/**
+ * Selects a part of the text when either the left or right arrow keys are used
+ * in conjunction with a modifier key(s)
+ *
+ * @author Justin Kocur
+ */
+public class KeySelectWordAction extends TextAction {
+    /** Use for left arrow key control over the caret */
+    public static final int LEFT_ARROW = 0;
+
+    /** Use for right arrow key control over the caret */
+    public static final int RIGHT_ARROW = 1;
+
+    // Left or right arrow direction specified in constructor
+    private final int ARROW;
+
+    /**
+     * Constructor with appropriate call to super constructor
+     *
+     * @param ARROW     direction in which the caret is moving
+     */
+    public KeySelectWordAction(final int ARROW) {
+        super("Key Move Word");
+
+        this.ARROW = ARROW;
+    }
+
+    /**
+     *  Selects appropriate part of the text when called
+     *
+     * @param e     used to get text component to access
+     */
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        JTextComponent target = getTextComponent(e);
+
+        if (target != null && target.getText().length() > 0) {
+            // True if text already highlighted, false if no highlighted text
+            boolean highlightFlag = target.getSelectedText() != null;
+
+            int offset = target.getCaretPosition();
+
+            // Can't go any further
+            if(highlightFlag) {
+                if(ARROW == LEFT_ARROW && offset <= 0)
+                    return;
+                if(ARROW == RIGHT_ARROW && offset >= target.getText().length())
+                    return;
+            }
+
+            if(ARROW == LEFT_ARROW) {
+                target.moveCaretPosition(moveLeft(target, offset, highlightFlag));
+            } else if(ARROW == RIGHT_ARROW) {
+                target.moveCaretPosition(moveRight(target, offset, highlightFlag));
+            }
+        }
+    }
+
+    /**
+     *  Finds the start position of the text to select
+     *
+     * @param target            text component to select on
+     * @param offset            position of the caret before selection
+     * @param highlightFlag     true if text already highlighted, false if no text
+     *                          highlighted before current call
+     * @return                  the start position in the text to select
+     */
+    private int moveLeft(JTextComponent target, int offset, boolean highlightFlag) {
+        // Find all extra characters that should be included
+        String text         = target.getText();
+        boolean startFound  = false;
+        int beginOffset     = offset;
+
+        // Char detected at offset
+        char c1 = text.charAt(Math.max(beginOffset - 1, 1));
+
+        if(highlightFlag && offset == target.getSelectionStart())
+            beginOffset--;
+
+        for (int i = beginOffset - 1; i >= 0 && !startFound; i--) {
+            if(isStoppingChar(c1)) {
+                if (text.charAt(i) != c1)
+                    startFound = true;
+                else
+                    beginOffset--;
+            } else {
+                if (isStoppingChar(text.charAt(i))) {
+                    startFound = true;
+                }
+                else {
+                    beginOffset--;
+                }
+            }
+        }
+
+        return beginOffset;
+    }
+
+    /**
+     *  Finds the end position of the text to select
+     *
+     * @param target            text component to select on
+     * @param offset            position of the caret before selection
+     * @param highlightFlag     true if text already highlighted, false if no text
+     *                          highlighted before current call
+     * @return                  the end position in the text to select
+     */
+    private int moveRight(JTextComponent target, int offset, boolean highlightFlag) {
+        // Find all extra characters that should be included
+        String text         = target.getText();
+        int length          = target.getDocument().getLength();
+        int endOffset       = offset;
+        boolean endFound    = false;
+
+        // Char detected at offset
+        char c1 = text.charAt(Math.min(endOffset, text.length() - 1));
+
+        // Char on other side of caret
+        char c2 = endOffset < text.length() && endOffset >= 0 ? text.charAt(endOffset) : c1;
+
+        for (int i = endOffset; i < length && !endFound; i++) {
+            if(isStoppingChar(c1) && isStoppingChar(c2)) {
+                if (text.charAt(i) != c1)
+                    endFound = true;
+                else
+                    endOffset++;
+            } else {
+                if (isStoppingChar(text.charAt(i)))
+                    endFound = true;
+                else
+                    endOffset++;
+            }
+        }
+
+        return endOffset;
+    }
+
+    /**
+     *  Determines if a character is a language char (alphabet),
+     *  a number, or underscore
+     *
+     * @param c     the char to check
+     * @return      true if stopping character, false if not
+     *              (IS a language char, number, or underscore)
+     */
+    private boolean isStoppingChar(char c) {
+        return (c < 'a' || c > 'z')
+                && (c < 'A' || c > 'Z')
+                && (c < 128 || c > 165) // non-English
+                && (c < '0' || c > '9') // numbers
+                && c != '_';
+    }
+}
